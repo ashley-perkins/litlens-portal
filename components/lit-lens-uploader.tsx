@@ -51,21 +51,25 @@ export function LitLensUploader() {
     setIsLoading(true)
     setSummary("")
 
-    // Simulate API call with timeout
-    setTimeout(() => {
-      setIsLoading(false)
-      setSummary(`This is a simulated summary of the PDF "${file.name}" based on your research goal: "${researchGoal}".
-      
-The paper discusses methods for detecting and measuring various biomarkers associated with appendiceal neoplasms. It highlights the importance of early detection in clinical practice. The authors note that the analysis of tissue samples is a key approach for identifying potential biomarkers.
-
-Key findings include:
-- Several protein markers show correlation with disease progression
-- Genetic mutations were identified in 78% of the examined tissue samples
-- The study offers new data about the potential therapeutic targets for appendiceal neoplasms
-
-It also emphasizes the need for coherence in lab packets to successfully analyze results.`)
-    }, 3000)
-  }
+    try {
+      const formData = new FormData();
+      formData.append("files", file);
+      formData.append("goal", researchGoal);
+  
+      const res = await fetch("https://ashley-perkins--litlens.hf.space/summarize-hf-pdfs", {
+        method: "POST",
+        body: formData,
+      });
+  
+      const data = await res.json();
+      setSummary(data.summary || "No summary returned.");
+    } catch (err) {
+      console.error("Error fetching summary:", err);
+      setSummary("Something went wrong while summarizing.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="w-full">
