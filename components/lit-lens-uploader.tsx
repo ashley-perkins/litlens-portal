@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,15 +9,17 @@ import { Loader2, Upload, FileText, Brain } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function LitLensUploader() {
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [researchGoal, setResearchGoal] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [summary, setSummary] = useState("")
+  const [summaries, setSummaries] = useState<
+    { filename: string; summary: string }[]
+  >([])
   const [isDragging, setIsDragging] = useState(false)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0])
+    if (e.target.files) {
+      setFiles(Array.from(e.target.files))
     }
   }
 
@@ -35,41 +36,50 @@ export function LitLensUploader() {
     e.preventDefault()
     setIsDragging(false)
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const droppedFile = e.dataTransfer.files[0]
-      if (droppedFile.type === "application/pdf") {
-        setFile(droppedFile)
-      }
+    if (e.dataTransfer.files) {
+      const droppedFiles = Array.from(e.dataTransfer.files).filter(
+        (f) => f.type === "application/pdf"
+      )
+      setFiles(droppedFiles)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!file || !researchGoal) return
+    if (files.length === 0 || !researchGoal) return
 
     setIsLoading(true)
-    setSummary("")
+    setSummaries([])
 
     try {
-      const formData = new FormData();
-      formData.append("files", file);
-      formData.append("goal", researchGoal);
-  
+      const formData = new FormData()
+      files.forEach((file) => formData.append("files", file))
+      formData.append("goal", researchGoal)
+
       const res = await fetch("https://ashley-perkins--litlens.hf.space/summarize-pdfs/", {
         method: "POST",
         body: formData,
-      });
-  
-      const data = await res.json();
-      setSummary(data.summary || "No summary returned.");
+      })
+
+      const data = await res.json()
+      if (Array.isArray(data.summaries)) {
+        setSummaries(
+          data.summaries.map((item: any) => ({
+            filename: item.filename || "Untitled",
+            summary: item.summary || "No summary returned.",
+          }))
+        )
+      } else {
+        setSummaries([])
+      }
     } catch (err) {
-      console.error("Error fetching summary:", err);
-      setSummary("Something went wrong while summarizing.");
+      console.error("Error fetching summary:", err)
+      setSummaries([{ filename: "Error", summary: "Something went wrong while summarizing." }])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
     <div className="w-full">
@@ -78,7 +88,7 @@ export function LitLensUploader() {
           className={cn(
             "border-2 border-dashed rounded-lg p-6 transition-colors",
             isDragging ? "border-[#1F2B3A] bg-blue-50" : "border-gray-300",
-            file ? "bg-blue-50" : "bg-white",
+            files.length > 0 ? "bg-blue-50" : "bg-white"
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -86,30 +96,30 @@ export function LitLensUploader() {
         >
           <div className="flex flex-col items-center justify-center space-y-4">
             <div className="p-3 rounded-full bg-blue-100">
-              {file ? <FileText className="h-8 w-8 text-[#1F2B3A]" /> : <Upload className="h-8 w-8 text-[#1F2B3A]" />}
+              {files.length > 0 ? <FileText className="h-8 w-8 text-[#1F2B3A]" /> : <Upload className="h-8 w-8 text-[#1F2B3A]" />}
             </div>
 
             <div className="text-center">
-              <h3 className="text-lg font-medium text-gray-900">{file ? file.name : "Upload your PDF"}</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                {files.length > 0 ? `${files.length} PDF${files.length > 1 ? "s" : ""} selected` : "Upload your PDFs"}
+              </h3>
               <p className="text-sm text-gray-500 mt-1">
-                {file ? "File selected" : "Drag and drop or click to select a file"}
+                {files.length > 0 ? "Files selected" : "Drag and drop or click to select PDF files"}
               </p>
             </div>
 
-            {!file && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => document.getElementById("file-upload")?.click()}
-                className="mt-2"
-              >
-                Select PDF
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => document.getElementById("file-upload")?.click()}
+              className="mt-2"
+            >
+              {files.length > 0 ? "Replace Files" : "Select PDFs"}
+            </Button>
 
-            {file && (
-              <Button type="button" variant="outline" onClick={() => setFile(null)} className="mt-2">
-                Remove File
+            {files.length > 0 && (
+              <Button type="button" variant="outline" onClick={() => setFiles([])} className="mt-2">
+                Clear Files
               </Button>
             )}
 
@@ -117,6 +127,7 @@ export function LitLensUploader() {
               id="file-upload"
               type="file"
               accept="application/pdf"
+              multiple
               onChange={handleFileChange}
               className="hidden"
             />
@@ -139,7 +150,7 @@ export function LitLensUploader() {
         <Button
           type="submit"
           className="w-full bg-[#1F2B3A] hover:bg-[#2d3b4d]"
-          disabled={!file || !researchGoal || isLoading}
+          disabled={files.length === 0 || !researchGoal || isLoading}
         >
           {isLoading ? (
             <>
@@ -155,19 +166,23 @@ export function LitLensUploader() {
         </Button>
       </form>
 
-      {(isLoading || summary) && (
+      {(isLoading || summaries.length > 0) && (
         <div className="mt-8">
           <h3 className="text-lg font-medium text-gray-900 mb-3">Summary</h3>
-          <Card className="p-6 bg-white border border-gray-200 rounded-lg">
+          <Card className="p-6 bg-white border border-gray-200 rounded-lg space-y-6">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 text-[#1F2B3A] animate-spin mb-4" />
-                <p className="text-gray-500">Analyzing your document...</p>
+                <p className="text-gray-500">Analyzing your document(s)...</p>
               </div>
             ) : (
-              <div className="prose max-w-none">
-                <p className="whitespace-pre-line">{summary}</p>
-              </div>
+              summaries.map((s, i) => (
+                <div key={i}>
+                  <h4 className="text-md font-semibold text-[#1F2B3A] mb-1">{s.filename}</h4>
+                  <p className="whitespace-pre-line text-gray-700">{s.summary}</p>
+                  {i < summaries.length - 1 && <hr className="my-4 border-gray-200" />}
+                </div>
+              ))
             )}
           </Card>
         </div>
