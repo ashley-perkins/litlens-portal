@@ -57,7 +57,7 @@ export function LitLensUploader() {
       files.forEach((file) => formData.append("files", file))
       formData.append("goal", researchGoal)
 
-      const res = await fetch("https://ashley-perkins--litlens.hf.space/summarize-pdfs/", {
+      const res = await fetch("https://ashley-perkins--litlens.hf.space/summarize-pdfs", {
         method: "POST",
         body: formData,
       })
