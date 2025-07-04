@@ -56,7 +56,7 @@ export function LitLensUploader() {
       formData.append("files", file);
       formData.append("goal", researchGoal);
   
-      const res = await fetch("https://ashley-perkins--litlens.hf.space/summarize-hf-pdfs/", {
+      const res = await fetch("https://ashley-perkins--litlens.hf.space/summarize-pdfs/", {
         method: "POST",
         body: formData,
       });
